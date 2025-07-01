@@ -1,19 +1,56 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Header } from './components/Header';
-import { WebhookForm } from './components/WebhookForm';
-import { MessageLog } from './components/MessageLog';
-import { sendMessage as sendWebhookMessage } from './services/webhookService';
-import { LogEntry, LogStatus, User, UserRole } from './types';
-import { LoginPage } from './components/LoginPage';
-import { AdminPanel } from './components/AdminPanel';
-import { Modal } from './components/Modal';
-import { SpinnerIcon } from './components/icons/SpinnerIcon';
+import { Header } from './components/Header.tsx';
+import { WebhookForm } from './components/WebhookForm.tsx';
+import { MessageLog } from './components/MessageLog.tsx';
+import { sendMessage as sendWebhookMessage } from './services/webhookService.ts';
+import { LogEntry, LogStatus, User, UserRole } from './types.ts';
+import { LoginPage } from './components/LoginPage.tsx';
+import { AdminPanel } from './components/AdminPanel.tsx';
+import { Modal } from './components/Modal.tsx';
 
+// Initial User Database. In a real app, this would come from a database.
+const INITIAL_USERS: Record<string, User> = {
+  'AOS-ADMIN-007': {
+    id: 'AOS-ADMIN-007',
+    role: 'admin',
+    isSuspended: false,
+    dailyLimit: 1000,
+    messageCount: 0,
+    lastCountReset: new Date().toISOString().split('T')[0],
+  },
+  'AOS-USER-12345': {
+    id: 'AOS-USER-12345',
+    role: 'user',
+    isSuspended: false,
+    dailyLimit: 20,
+    messageCount: 0,
+    lastCountReset: new Date().toISOString().split('T')[0],
+  },
+    'AOS-DEV-99999': {
+    id: 'AOS-DEV-99999',
+    role: 'user',
+    isSuspended: true,
+    dailyLimit: 50,
+    messageCount: 0,
+    lastCountReset: new Date().toISOString().split('T')[0],
+  },
+};
+
+const USERS_STORAGE_KEY = 'aos-bot-portal-users';
 
 function App() {
-  const [users, setUsers] = useState<Record<string, User>>({});
-  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [users, setUsers] = useState<Record<string, User>>(() => {
+    try {
+        const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+        if (storedUsers) {
+            return JSON.parse(storedUsers);
+        }
+    } catch (error) {
+        console.error("Failed to parse users from localStorage, using default.", error);
+    }
+    return INITIAL_USERS;
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   
@@ -24,61 +61,34 @@ function App() {
   const [view, setView] = useState<'main' | 'admin'>('main');
   const [modal, setModal] = useState<{ isOpen: boolean; title: string; content: React.ReactNode; onConfirm?: () => void; confirmText?: string; cancelText?: string }>({ isOpen: false, title: '', content: '' });
 
-  const fetchUsers = useCallback(async () => {
-    setIsAppLoading(true);
-    try {
-        const response = await fetch('/api/users');
-        if (!response.ok) {
-            throw new Error('Could not connect to the server.');
-        }
-        const usersArray: User[] = await response.json();
-        const usersRecord = usersArray.reduce((acc, user) => {
-            acc[user.id] = user;
-            return acc;
-        }, {} as Record<string, User>);
-        setUsers(usersRecord);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        setAuthError(`Failed to load user data: ${errorMessage}`);
-    } finally {
-        setIsAppLoading(false);
-    }
-  }, []);
-  
+  // Effect to persist users to localStorage whenever they change
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    try {
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    } catch (error) {
+        console.error("Failed to save users to localStorage.", error);
+    }
+  }, [users]);
 
-
-  const openModal = useCallback((title: string, content: React.ReactNode, onConfirm?: () => void, confirmText?: string, cancelText?: string) => {
+  const openModal = (title: string, content: React.ReactNode, onConfirm?: () => void, confirmText?: string, cancelText?: string) => {
     setModal({ isOpen: true, title, content, onConfirm, confirmText, cancelText });
-  }, []);
+  };
   const closeModal = () => setModal(prev => ({ ...prev, isOpen: false }));
 
-  const updateUser = useCallback(async (uid: string, updates: Partial<Omit<User, 'id'>>) => {
-    // Optimistically update role to immediately change daily limit input disable status
-    if (updates.role) {
-        setUsers(prev => ({...prev, [uid]: {...prev[uid], ...updates} as User}));
-    }
+  const updateUser = useCallback((uid: string, updates: Partial<Omit<User, 'id'>>) => {
+    setUsers(prev => {
+        if (!prev[uid]) return prev;
+        const originalUser = prev[uid];
+        const updatedUser = { ...originalUser, ...updates };
 
-    try {
-        const response = await fetch(`/api/users/${uid}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updates),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to update user');
+        // If role is being changed, automatically adjust the daily limit.
+        if (updates.role && updates.role !== originalUser.role) {
+            updatedUser.dailyLimit = updates.role === 'admin' ? 1000 : 20;
         }
-        const updatedUserFromServer = await response.json();
-        setUsers(prev => ({...prev, [uid]: updatedUserFromServer}));
-    } catch (error) {
-        openModal('Error', `Failed to update user: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        // Revert optimistic update on error
-        fetchUsers();
-    }
-  }, [openModal, fetchUsers]);
+
+        return { ...prev, [uid]: updatedUser };
+    });
+  }, []);
 
   const updateLog = (id: string, newStatus: LogStatus, error?: string) => {
       setLogData(prevData => {
@@ -95,15 +105,18 @@ function App() {
     const today = new Date().toISOString().split('T')[0];
     let user = users[currentUser.id];
 
+    // Suspension check is universal and happens first.
     if (user.isSuspended) {
       openModal('Account Suspended', 'Your account is currently suspended. You cannot send messages. Please contact an administrator.');
       return false;
     }
     
+    // Conditionally check and enforce the daily limit.
     if (!options?.bypassLimit) {
+        // Check for daily count reset
         if (user.lastCountReset !== today) {
             user = { ...user, messageCount: 0, lastCountReset: today };
-            await updateUser(user.id, { messageCount: 0, lastCountReset: today });
+            updateUser(user.id, { messageCount: 0, lastCountReset: today });
         }
 
         if (user.messageCount >= user.dailyLimit) {
@@ -128,8 +141,9 @@ function App() {
       await sendWebhookMessage(webhookUrl, message);
       updateLog(tempId, 'success');
       
+      // Conditionally increment the message count.
       if (!options?.bypassLimit) {
-        await updateUser(user.id, { messageCount: user.messageCount + 1 });
+        updateUser(user.id, { messageCount: user.messageCount + 1 });
       }
 
       setIsLoading(false);
@@ -145,20 +159,16 @@ function App() {
   const handleLogin = useCallback(async (uid: string) => {
     setIsLoading(true);
     setAuthError(null);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate auth delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    let user = users[uid];
+    const user = users[uid];
     if (user) {
         const today = new Date().toISOString().split('T')[0];
+        // Reset daily count if logging in on a new day
         if (user.lastCountReset !== today) {
-            await updateUser(uid, { messageCount: 0, lastCountReset: today });
-            // refetch user to get the updated state from server
-            const res = await fetch('/api/users');
-            const latestUsers: User[] = await res.json();
-            const record = latestUsers.reduce((acc, u) => ({...acc, [u.id]: u}), {});
-            setUsers(record);
-            setCurrentUser(record[uid]);
-
+            const updatedUser = { ...user, messageCount: 0, lastCountReset: today };
+            updateUser(uid, { messageCount: 0, lastCountReset: today });
+            setCurrentUser(updatedUser);
         } else {
             setCurrentUser(user);
         }
@@ -171,11 +181,12 @@ function App() {
 
   const handleLogout = useCallback(() => {
     setCurrentUser(null);
+    // Do not clear all logs on logout, they are now global
     setAuthError(null);
     setView('main');
   }, []);
 
-  const handleAddUser = async (uid: string) => {
+  const handleAddUser = (uid: string) => {
     if (!uid) {
         openModal('Error', 'User ID cannot be empty.');
         return;
@@ -184,55 +195,41 @@ function App() {
         openModal('Error', `User with ID "${uid}" already exists.`);
         return;
     }
-    try {
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: uid }),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to create user');
+    setUsers(prev => ({
+        ...prev,
+        [uid]: {
+            id: uid, role: 'user', isSuspended: false, dailyLimit: 20, messageCount: 0, lastCountReset: new Date().toISOString().split('T')[0]
         }
-        const newUser = await response.json();
-        setUsers(prev => ({ ...prev, [newUser.id]: newUser }));
-    } catch (error) {
-        openModal('Error', `Failed to add user: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }));
   };
 
   const handleRemoveUser = (uid: string) => {
     openModal(
         'Confirm Deletion',
         `Are you sure you want to permanently remove user "${uid}"? This action cannot be undone.`,
-        async () => {
-            try {
-                const response = await fetch(`/api/users/${uid}`, { method: 'DELETE' });
-                if (!response.ok && response.status !== 204) {
-                    const err = await response.json();
-                    throw new Error(err.error || 'Failed to delete user');
-                }
-                
-                setUsers(prev => {
-                    const nextState = { ...prev };
-                    delete nextState[uid];
-                    return nextState;
+        () => {
+            const logsOwnedByUser = Object.keys(logData).filter(id => logData[id].userId === uid);
+            
+            // Remove the user
+            setUsers(prev => {
+                const nextState = { ...prev };
+                delete nextState[uid];
+                return nextState;
+            });
+            
+            // Remove their logs from logData
+            setLogData(prev => {
+                const nextData = { ...prev };
+                logsOwnedByUser.forEach(id => {
+                    delete nextData[id];
                 });
-                
-                // You may want a different strategy for logs, like keeping them or archiving.
-                // For now, we'll just remove them from the view.
-                const logsOwnedByUser = Object.keys(logData).filter(id => logData[id].userId === uid);
-                setLogData(prev => {
-                    const nextData = { ...prev };
-                    logsOwnedByUser.forEach(id => { delete nextData[id] });
-                    return nextData;
-                });
-                setLogOrder(prev => prev.filter(id => !logsOwnedByUser.includes(id)));
-                
-                closeModal();
-            } catch (error) {
-                openModal('Error', `Failed to remove user: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
+                return nextData;
+            });
+
+            // Remove their logs from logOrder
+            setLogOrder(prev => prev.filter(id => !logsOwnedByUser.includes(id)));
+            
+            closeModal();
         },
         'Delete',
         'Cancel'
@@ -274,20 +271,11 @@ function App() {
       }
   }, [users, currentUser, handleLogout]);
 
-  if (isAppLoading) {
-      return (
-          <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center justify-center">
-            <SpinnerIcon className="h-10 w-10 animate-spin text-blue-500" />
-            <p className="mt-4 text-lg">Connecting to server...</p>
-          </div>
-      );
-  }
-
-
   if (!currentUser) {
     return <LoginPage onLogin={handleLogin} isLoading={isLoading} error={authError} />;
   }
   
+  // Filter logs to show only the current user's logs in the main view
   const currentUserLogsOrder = logOrder.filter(id => logData[id]?.userId === currentUser.id);
 
   return (

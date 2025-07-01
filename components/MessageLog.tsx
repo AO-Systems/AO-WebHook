@@ -1,8 +1,8 @@
 import React from 'react';
-import { LogEntry, LogStatus } from '../types';
-import { CheckCircleIcon } from './icons/CheckCircleIcon';
-import { XCircleIcon } from './icons/XCircleIcon';
-import { SpinnerIcon } from './icons/SpinnerIcon';
+import { LogEntry, LogStatus } from '../types.ts';
+import { CheckCircleIcon } from './icons/CheckCircleIcon.tsx';
+import { XCircleIcon } from './icons/XCircleIcon.tsx';
+import { SpinnerIcon } from './icons/SpinnerIcon.tsx';
 
 interface MessageLogProps {
   logData: Record<string, LogEntry>;

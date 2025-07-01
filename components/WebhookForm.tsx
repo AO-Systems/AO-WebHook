@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { SpinnerIcon } from './icons/SpinnerIcon';
+import { SpinnerIcon } from './icons/SpinnerIcon.tsx';
 
 interface WebhookFormProps {
   onSubmit: (webhookUrl: string, message: string, options?: { bypassLimit?: boolean }) => Promise<boolean>;
