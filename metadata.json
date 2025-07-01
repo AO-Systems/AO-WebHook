@@ -1,0 +1,6 @@
+{
+  "name": "AOS Bot Portal",
+  "description": "A web portal to send messages to a collaboration space using webhooks. Enter a webhook URL and a message to post notifications or updates.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
