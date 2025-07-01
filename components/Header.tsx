@@ -1,8 +1,8 @@
 import React from 'react';
-import { PaperAirplaneIcon } from './icons/PaperAirplaneIcon';
-import { LogoutIcon } from './icons/LogoutIcon';
-import { UsersIcon } from './icons/UsersIcon';
-import { User } from '../types';
+import { PaperAirplaneIcon } from './icons/PaperAirplaneIcon.tsx';
+import { LogoutIcon } from './icons/LogoutIcon.tsx';
+import { UsersIcon } from './icons/UsersIcon.tsx';
+import { User } from '../types.ts';
 
 interface HeaderProps {
   onLogout?: () => void;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { SpinnerIcon } from './icons/SpinnerIcon';
-import { LockClosedIcon } from './icons/LockClosedIcon';
+import { SpinnerIcon } from './icons/SpinnerIcon.tsx';
+import { LockClosedIcon } from './icons/LockClosedIcon.tsx';
 
 interface LoginPageProps {
   onLogin: (uid: string) => Promise<void>;
