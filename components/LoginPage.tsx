@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { SpinnerIcon } from './icons/SpinnerIcon.tsx';
-import { LockClosedIcon } from './icons/LockClosedIcon.tsx';
+import { SpinnerIcon } from './icons/SpinnerIcon';
+import { LockClosedIcon } from './icons/LockClosedIcon';
 
 interface LoginPageProps {
   onLogin: (uid: string) => Promise<void>;
@@ -26,7 +26,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isLoading, error 
             <div className="inline-flex items-center justify-center bg-slate-900/50 p-3 rounded-full border-2 border-blue-500/50 mb-4">
               <LockClosedIcon className="h-8 w-8 text-blue-400" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-100 tracking-wider">AOS Bot Portal</h1>
+            <h1 className="text-2xl font-bold text-slate-100 tracking-wider">AOS User Portal</h1>
             <p className="text-slate-400 text-sm">Authentication Required</p>
           </div>
 

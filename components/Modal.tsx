@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface ModalProps {
     isOpen: boolean;
@@ -11,16 +11,29 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, content, onConfirm, confirmText, cancelText }) => {
-    if (!isOpen) return null;
+    const [isShowing, setIsShowing] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            const timer = setTimeout(() => setIsShowing(true), 10);
+            return () => clearTimeout(timer);
+        } else {
+            setIsShowing(false);
+        }
+    }, [isOpen]);
+
+    if (!isOpen && !isShowing) {
+        return null;
+    }
 
     return (
         <div className="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             {/* Backdrop */}
-            <div className="fixed inset-0 bg-slate-900 bg-opacity-75 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
+            <div className={`fixed inset-0 bg-slate-900 bg-opacity-75 backdrop-blur-sm transition-opacity duration-300 ease-out ${isShowing ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" onClick={onClose}></div>
 
             <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
                 <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                    <div className="relative transform overflow-hidden rounded-lg bg-slate-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-700">
+                    <div className={`relative transform overflow-hidden rounded-lg bg-slate-800 text-left shadow-xl transition-all duration-300 ease-out sm:my-8 sm:w-full sm:max-w-lg border border-slate-700 ${isShowing ? 'opacity-100 translate-y-0 sm:scale-100' : 'opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95'}`}>
                         <div className="bg-slate-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                             <div className="sm:flex sm:items-start">
                                 <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-900/50 sm:mx-0 sm:h-10 sm:w-10">
@@ -33,9 +46,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, content, o
                                         {title}
                                     </h3>
                                     <div className="mt-2">
-                                        <p className="text-sm text-slate-400">
+                                        <div className="text-sm text-slate-400">
                                             {content}
-                                        </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

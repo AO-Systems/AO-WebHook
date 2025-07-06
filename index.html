@@ -3,10 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale-1.0" />
-    <title>AOS Bot Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AOS User Portal</title>
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .app-container-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeAndSlideIn {
+        from { 
+          opacity: 0; 
+          transform: translateY(16px);
+        }
+        to { 
+          opacity: 1; 
+          transform: translateY(0);
+        }
+      }
+      .view-fade-slide-in {
+        animation: fadeAndSlideIn 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+      }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
@@ -20,7 +41,6 @@
 </head>
   <body class="bg-slate-900">
     <div id="root"></div>
-    <script type="text/babel" data-type="module" src="/index.tsx"></script>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>
